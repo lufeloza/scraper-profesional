@@ -1,0 +1,27 @@
+version: '3.8'
+
+services:
+  api:
+    build: .
+    container_name: web-scraper-api
+    ports:
+      - "8002:8002"
+    volumes:
+      - ./scraping_resultados:/app/scraping_resultados
+    restart: unless-stopped
+
+  frontend:
+    image: node:20-alpine
+    working_dir: /app
+    container_name: web-scraper-frontend
+    ports:
+      - "5173:80"
+    volumes:
+      - ./frontend:/app
+    command: >
+      sh -c "npm install && npm run build && cp -r dist/* /usr/share/nginx/html/ && nginx -g 'daemon off;'"
+    depends_on:
+      - api
+
+volumes:
+  scraping_resultados:
