@@ -1,0 +1,56 @@
+{
+  "noticias": {
+    "default": {
+      "articulos": "article",
+      "titulo": "h1, h2, h3",
+      "resumen": "p",
+      "enlace": "a",
+      "fecha": "time, .date, .fecha",
+      "imagen": "img"
+    },
+    "bbc.com": {
+      "articulos": "[data-component=\"card\"]",
+      "titulo": "h2, h3",
+      "resumen": "p",
+      "enlace": "a",
+      "fecha": "time",
+      "imagen": "img"
+    },
+    "elpais.com": {
+      "articulos": "article",
+      "titulo": "h2, h3",
+      "resumen": "p",
+      "enlace": "a",
+      "fecha": "time, .date",
+      "imagen": "img"
+    },
+    "elmundo.es": {
+      "articulos": "article",
+      "titulo": "h2, h3",
+      "resumen": "p",
+      "enlace": "a",
+      "fecha": "time",
+      "imagen": "img"
+    }
+  },
+  "ecommerce": {
+    "amazon": {
+      "nombre": "[data-component-id=\"1\"] h1, #productTitle",
+      "precio": ".a-price .a-offscreen, .a-price-whole",
+      "disponibilidad": "#availability span",
+      "imagen": "#landingImage, #imgBlkFront"
+    },
+    "mercadolibre": {
+      "nombre": ".ui-pdp-title",
+      "precio": ".andes-money-amount__fraction",
+      "disponibilidad": ".ui-pdp-stock",
+      "imagen": ".ui-pdp-gallery__figure img"
+    },
+    "default": {
+      "nombre": "h1, [class*=\"product-name\"], [class*=\"product-title\"]",
+      "precio": "[class*=\"price\"], .price",
+      "disponibilidad": "[class*=\"stock\"], [class*=\"availability\"]",
+      "imagen": "img[class*=\"product\"], .product-image img"
+    }
+  }
+}

@@ -29,7 +29,8 @@ from dataclasses import dataclass, asdict
 from urllib.parse import urljoin, urlparse
 
 # Librerías para scraping
-import requests
+import httpx
+import asyncio
 from bs4 import BeautifulSoup
 
 # Para exportación a Excel (opcional)
@@ -166,61 +167,42 @@ def obtener_dominio(url: str) -> str:
 
 class ScraperBase:
     """
-    Clase base para todos los scrapers.
-    Proporciona funcionalidad común como:
-    - Manejo de sesiones HTTP
-    - Reintentos automáticos
-    - Respeto por robots.txt (delay entre peticiones)
+    Clase base para todos los scrapers asíncronos.
     """
     
     def __init__(self, headers: Optional[Dict] = None):
-        """
-        Inicializa el scraper con headers personalizados.
-        
-        Args:
-            headers: Headers HTTP personalizados (opcional)
-        """
-        self.session = requests.Session()
         self.headers = headers or HEADERS_NAVEGADOR
-        self.session.headers.update(self.headers)
-        self.ultimo_request = 0
+        self.client = httpx.AsyncClient(headers=self.headers, timeout=30.0, follow_redirects=True)
+        self.config = self._cargar_configuracion()
+
+    def _cargar_configuracion(self) -> Dict:
+        """Carga la configuración desde el archivo JSON externo"""
+        config_path = os.path.join(os.path.dirname(__file__), "scraper_config.json")
+        try:
+            with open(config_path, 'r', encoding='utf-8') as f:
+                return json.load(f)
+        except Exception as e:
+            logger.error(f"Error cargando configuración: {e}")
+            return {}
+
+    async def cerrar(self):
+        """Cierra el cliente HTTP"""
+        await self.client.aclose()
         
-    def _respetar_delay(self) -> None:
-        """Espera el tiempo necesario entre peticiones"""
-        tiempo_transcurrido = time.time() - self.ultimo_request
-        if tiempo_transcurrido < TIEMPO_ESPERA_SEGUNDOS:
-            time.sleep(TIEMPO_ESPERA_SEGUNDOS - tiempo_transcurrido)
-    
-    def obtener_pagina(self, url: str, reintentos: int = 3) -> Optional[BeautifulSoup]:
-        """
-        Obtiene el contenido de una página web.
-        
-        Args:
-            url: URL de la página a scrapear
-            reintentos: Número de reintentos en caso de error
-            
-        Returns:
-            BeautifulSoup object o None si hay error
-        """
-        self._respetar_delay()
-        
+    async def obtener_pagina(self, url: str, reintentos: int = 3) -> Optional[BeautifulSoup]:
+        """Obtiene el contenido de una página web de forma asíncrona"""
         for intento in range(reintentos):
             try:
                 logger.info(f"Obteniendo: {url} (intento {intento + 1}/{reintentos})")
-                response = self.session.get(url, timeout=30)
+                response = await self.client.get(url)
                 response.raise_for_status()
                 
-                self.ultimo_request = time.time()
+                return BeautifulSoup(response.content, 'html.parser')
                 
-                # Crear objeto BeautifulSoup
-                soup = BeautifulSoup(response.content, 'html.parser')
-                logger.info(f"Página obtenida exitosamente: {url}")
-                return soup
-                
-            except requests.exceptions.RequestException as e:
+            except httpx.HTTPError as e:
                 logger.error(f"Error obteniendo {url}: {e}")
                 if intento < reintentos - 1:
-                    time.sleep(5 * (intento + 1))  # Backoff exponencial
+                    await asyncio.sleep(2 * (intento + 1))
                     
         return None
     
@@ -268,62 +250,17 @@ class ScraperNoticias(ScraperBase):
     Soporta múltiples fuentes y estructura de datos estandarizada.
     """
     
-    # Selectores CSS para diferentes sitios de noticias
-    SELECTORES_SITIOS = {
-        'default': {
-            'articulos': 'article',
-            'titulo': 'h1, h2, h3',
-            'resumen': 'p',
-            'enlace': 'a',
-            'fecha': 'time, .date, .fecha',
-            'imagen': 'img'
-        },
-        'bbc.com': {
-            'articulos': '[data-component="card"]',
-            'titulo': 'h2, h3',
-            'resumen': 'p',
-            'enlace': 'a',
-            'fecha': 'time',
-            'imagen': 'img'
-        },
-        'elpais.com': {
-            'articulos': 'article',
-            'titulo': 'h2, h3',
-            'resumen': 'p',
-            'enlace': 'a',
-            'fecha': 'time, .date',
-            'imagen': 'img'
-        },
-        'elmundo.es': {
-            'articulos': 'article',
-            'titulo': 'h2, h3',
-            'resumen': 'p',
-            'enlace': 'a',
-            'fecha': 'time',
-            'imagen': 'img'
-        }
-    }
-    
     def obtener_selectores(self, url: str) -> Dict:
-        """Obtiene los selectores apropiados según el dominio"""
+        """Obtiene los selectores desde la configuración externa"""
+        noticias_config = self.config.get('noticias', {})
         dominio = obtener_dominio(url)
-        for sitio, selectores in self.SELECTORES_SITIOS.items():
+        for sitio, selectores in noticias_config.items():
             if sitio in dominio:
                 return selectores
-        return self.SELECTORES_SITIOS['default']
+        return noticias_config.get('default', {})
     
-    def extraer_noticias(self, url: str, max_noticias: int = 10) -> List[Dict]:
-        """
-        Extrae noticias de una página web.
-        
-        Args:
-            url: URL de la página de noticias
-            max_noticias: Número máximo de noticias a extraer
-            
-        Returns:
-            Lista de diccionarios con datos de noticias
-        """
-        soup = self.obtener_pagina(url)
+    async def extraer_noticias(self, url: str, max_noticias: int = 10) -> List[Dict]:
+        soup = await self.obtener_pagina(url)
         if not soup:
             return []
         
@@ -369,7 +306,7 @@ class ScraperNoticias(ScraperBase):
             'fecha_extraccion': datetime.utcnow().isoformat()
         }
     
-    def extraer_articulo_completo(self, url: str) -> Optional[Dict]:
+    async def extraer_articulo_completo(self, url: str) -> Optional[Dict]:
         """
         Extrae el contenido completo de un artículo.
         
@@ -379,7 +316,7 @@ class ScraperNoticias(ScraperBase):
         Returns:
             Diccionario con el contenido completo del artículo
         """
-        soup = self.obtener_pagina(url)
+        soup = await self.obtener_pagina(url)
         if not soup:
             return None
         
@@ -416,28 +353,6 @@ class ScraperEcommerce(ScraperBase):
     Soporta múltiples tiendas online.
     """
     
-    # Patrones para extraer precios en diferentes tiendas
-    PATRONES_TIENDAS = {
-        'amazon': {
-            'nombre': '[data-component-id="1"] h1, #productTitle',
-            'precio': '.a-price .a-offscreen, .a-price-whole',
-            'disponibilidad': '#availability span',
-            'imagen': '#landingImage, #imgBlkFront'
-        },
-        'mercadolibre': {
-            'nombre': '.ui-pdp-title',
-            'precio': '.andes-money-amount__fraction',
-            'disponibilidad': '.ui-pdp-stock',
-            'imagen': '.ui-pdp-gallery__figure img'
-        },
-        'default': {
-            'nombre': 'h1, [class*="product-name"], [class*="product-title"]',
-            'precio': '[class*="price"], .price',
-            'disponibilidad': '[class*="stock"], [class*="availability"]',
-            'imagen': 'img[class*="product"], .product-image img'
-        }
-    }
-    
     def identificar_tienda(self, url: str) -> str:
         """Identifica la tienda basándose en la URL"""
         dominio = obtener_dominio(url).lower()
@@ -447,22 +362,18 @@ class ScraperEcommerce(ScraperBase):
             return 'mercadolibre'
         return 'default'
     
-    def extraer_producto(self, url: str) -> Optional[ProductoEcommerce]:
-        """
-        Extrae información de un producto de e-commerce.
-        
-        Args:
-            url: URL del producto
-            
-        Returns:
-            ProductoEcommerce con los datos extraídos
-        """
-        soup = self.obtener_pagina(url)
+    def obtener_patrones(self, url: str) -> Dict:
+        """Obtiene los patrones desde la configuración externa"""
+        tienda = self.identificar_tienda(url)
+        ecommerce_config = self.config.get('ecommerce', {})
+        return ecommerce_config.get(tienda, ecommerce_config.get('default', {}))
+
+    async def extraer_producto(self, url: str) -> Optional[ProductoEcommerce]:
+        soup = await self.obtener_pagina(url)
         if not soup:
             return None
         
-        tienda = self.identificar_tienda(url)
-        patrones = self.PATRONES_TIENDAS.get(tienda, self.PATRONES_TIENDAS['default'])
+        patrones = self.obtener_patrones(url)
         
         # Extraer nombre
         nombre = self.extraer_texto_elemento(soup, patrones['nombre'])
@@ -501,23 +412,13 @@ class ScraperEcommerce(ScraperBase):
             fecha_consulta=datetime.utcnow().isoformat()
         )
     
-    def monitorear_productos(self, urls: List[str]) -> List[ProductoEcommerce]:
+    async def monitorear_productos(self, urls: List[str]) -> List[ProductoEcommerce]:
         """
-        Monitorea múltiples productos y retorna sus precios actuales.
-        
-        Args:
-            urls: Lista de URLs de productos a monitorear
-            
-        Returns:
-            Lista de productos con información actualizada
+        Monitorea múltiples productos de forma concurrente.
         """
-        productos = []
-        for url in urls:
-            logger.info(f"Monitoreando: {url}")
-            producto = self.extraer_producto(url)
-            if producto:
-                productos.append(producto)
-        return productos
+        tareas = [self.extraer_producto(url) for url in urls]
+        resultados = await asyncio.gather(*tareas)
+        return [r for r in resultados if r]
 
 # =============================================================================
 # SCRAPER GENÉRICO
@@ -529,19 +430,9 @@ class ScraperGenerico(ScraperBase):
     Útil para casos específicos donde se conocen los selectores.
     """
     
-    def extraer_datos(self, url: str, configuracion: Dict) -> Dict:
-        """
-        Extrae datos según una configuración de selectores.
-        
-        Args:
-            url: URL de la página
-            configuracion: Diccionario con mapeo de campos a selectores CSS
-                          Ejemplo: {'titulo': 'h1', 'precio': '.price'}
-        
-        Returns:
-            Diccionario con los datos extraídos
-        """
-        soup = self.obtener_pagina(url)
+    async def extraer_datos(self, url: str, configuracion: Dict) -> Dict:
+        """Extrae datos según una configuración de selectores (Async)"""
+        soup = await self.obtener_pagina(url)
         if not soup:
             return {'error': 'No se pudo obtener la página'}
         
@@ -566,18 +457,8 @@ class ScraperGenerico(ScraperBase):
         
         return resultado
     
-    def extraer_tabla(self, url: str, selector_tabla: str) -> List[Dict]:
-        """
-        Extrae datos de una tabla HTML.
-        
-        Args:
-            url: URL de la página
-            selector_tabla: Selector CSS de la tabla
-            
-        Returns:
-            Lista de diccionarios, cada uno representa una fila
-        """
-        soup = self.obtener_pagina(url)
+    async def extraer_tabla(self, url: str, selector_tabla: str) -> List[Dict]:
+        soup = await self.obtener_pagina(url)
         if not soup:
             return []
         
@@ -722,81 +603,73 @@ class ExportadorDatos:
 # EJEMPLO DE USO Y DEMO
 # =============================================================================
 
-def demo_scraper_noticias():
+async def demo_scraper_noticias():
     """
-    Demostración del scraper de noticias.
-    Extrae noticias de diferentes fuentes.
+    Demostración del scraper de noticias asíncrono.
     """
     print("\n" + "="*60)
-    print("📰 DEMO: SCRAPER DE NOTICIAS")
+    print("📰 DEMO: SCRAPER DE NOTICIAS (ASYNC)")
     print("="*60)
     
     scraper = ScraperNoticias()
-    
-    # URLs de ejemplo para demo
-    urls_demo = [
-        "https://elpais.com/tecnologia/",
-        "https://www.bbc.com/news/technology"
-    ]
-    
-    todas_noticias = []
-    
-    for url in urls_demo:
-        print(f"\n🔍 Extrayendo noticias de: {url}")
-        noticias = scraper.extraer_noticias(url, max_noticias=5)
+    try:
+        urls_demo = [
+            "https://elpais.com/tecnologia/",
+            "https://www.bbc.com/news/technology"
+        ]
         
-        for i, noticia in enumerate(noticias, 1):
-            print(f"\n  [{i}] {noticia.get('titulo', 'Sin título')[:80]}...")
-            if noticia.get('resumen'):
-                print(f"      {noticia.get('resumen')[:100]}...")
+        todas_noticias = []
         
-        todas_noticias.extend(noticias)
-    
-    # Exportar resultados
-    if todas_noticias:
-        ExportadorDatos.a_json(todas_noticias, "noticias_demo")
-        ExportadorDatos.a_csv(todas_noticias, "noticias_demo")
-        print(f"\n✅ Exportadas {len(todas_noticias)} noticias")
-    
-    return todas_noticias
+        for url in urls_demo:
+            print(f"\n🔍 Extrayendo noticias de: {url}")
+            noticias = await scraper.extraer_noticias(url, max_noticias=5)
+            
+            for i, noticia in enumerate(noticias, 1):
+                print(f"\n  [{i}] {noticia.get('titulo', 'Sin título')[:80]}...")
+        
+            todas_noticias.extend(noticias)
+        
+        if todas_noticias:
+            ExportadorDatos.a_json(todas_noticias, "noticias_demo")
+            print(f"\n✅ Exportadas {len(todas_noticias)} noticias")
+            
+        return todas_noticias
+    finally:
+        await scraper.cerrar()
 
 
-def demo_scraper_ecommerce():
+async def demo_scraper_ecommerce():
     """
-    Demostración del scraper de e-commerce.
-    Muestra cómo monitorear precios.
+    Demostración del scraper de e-commerce paralelo.
     """
     print("\n" + "="*60)
-    print("🛒 DEMO: SCRAPER DE E-COMMERCE")
+    print("🛒 DEMO: SCRAPER DE E-COMMERCE (PARALLEL)")
     print("="*60)
     
     scraper = ScraperEcommerce()
-    
-    # URLs de ejemplo (productos populares)
-    urls_productos = [
-        # Agregar URLs de productos reales para probar
-        # Ejemplo: "https://www.amazon.com/dp/B08N5WRWNW"
-    ]
-    
-    if not urls_productos:
-        print("\n⚠️  Para probar el scraper de e-commerce, agrega URLs de productos")
-        print("   Puedes agregar URLs de Amazon, MercadoLibre, etc.")
-        return []
-    
-    productos = scraper.monitorear_productos(urls_productos)
-    
-    for producto in productos:
-        print(f"\n📦 {producto.nombre[:60]}...")
-        print(f"   💰 Precio: {producto.precio}")
-        print(f"   📊 Disponibilidad: {producto.disponibilidad}")
-    
-    # Exportar resultados
-    if productos:
-        datos = [asdict(p) for p in productos]
-        ExportadorDatos.a_json(datos, "productos_demo")
-        print(f"\n✅ Exportados {len(productos)} productos")
-    
-    return productos
+    try:
+        urls_productos = [
+            # Amazon / MercadoLibre URLs de ejemplo
+        ]
+        
+        if not urls_productos:
+            print("\n⚠️  Para probar el scraper de e-commerce, agrega URLs en scraper.py")
+            return []
+        
+        productos = await scraper.monitorear_productos(urls_productos)
+        
+        for producto in productos:
+            print(f"\n📦 {producto.nombre[:60]}...")
+            print(f"   💰 Precio: {producto.precio}")
+        
+        if productos:
+            datos = [asdict(p) for p in productos]
+            ExportadorDatos.a_json(datos, "productos_demo")
+            print(f"\n✅ Exportados {len(productos)} productos")
+            
+        return productos
+    finally:
+        await scraper.cerrar()
 
 
 def demo_scraper_generico():
@@ -837,53 +710,4 @@ def demo_scraper_generico():
     """)
 
 
-def main():
-    """
-    Función principal que ejecuta las demostraciones.
-    """
-    print("""
-╔════════════════════════════════════════════════════════════╗
-║                                                            ║
-║           🕷️  WEB SCRAPER PROFESIONAL v1.0  🕷️            ║
-║                                                            ║
-║     Extrae datos de cualquier página web de forma          ║
-║     eficiente y los exporta a múltiples formatos           ║
-║                                                            ║
-╚════════════════════════════════════════════════════════════╝
-    """)
-    
-    # Crear directorio de salida
-    crear_directorio_salida()
-    
-    # Ejecutar demos
-    print("\n🚀 Ejecutando demostraciones...\n")
-    
-    # Demo de noticias
-    try:
-        demo_scraper_noticias()
-    except Exception as e:
-        print(f"❌ Error en demo de noticias: {e}")
-    
-    # Demo de e-commerce
-    try:
-        demo_scraper_ecommerce()
-    except Exception as e:
-        print(f"❌ Error en demo de e-commerce: {e}")
-    
-    # Demo genérico
-    demo_scraper_generico()
-    
-    print("\n" + "="*60)
-    print("✅ DEMOSTRACIÓN COMPLETADA")
-    print("="*60)
-    print(f"\n📁 Los resultados se guardaron en: {DIRECTORIO_SALIDA}/")
-    print("\n📚 Para usar el scraper en tus proyectos:")
-    print("   1. Importa las clases necesarias")
-    print("   2. Crea una instancia del scraper")
-    print("   3. Llama a los métodos de extracción")
-    print("   4. Exporta los resultados")
-    print("\n📖 Consulta el README para más información.")
-
-
-if __name__ == "__main__":
-    main()
+# Nota: La ejecución principal asíncrona se realiza ahora desde main.py

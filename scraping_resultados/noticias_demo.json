@@ -1,0 +1,47 @@
+[
+  {
+    "titulo": "Así opera un ‘groomer’: “Una de las chicas dijo que siempre estaba allí para ella”",
+    "resumen": "La Policía detiene a un ciberacosador sexual de menores en Madrid con cuatro órdenes de búsqueda y cientos de chats activos",
+    "enlace": "https://elpais.com/tecnologia/2026-03-25/asi-opera-un-groomer-una-de-las-chicas-dijo-que-siempre-estaba-alli-para-ella.html",
+    "fecha": "2026-03-25T16:18:27+01:00",
+    "imagen": null,
+    "fuente": "elpais.com",
+    "fecha_extraccion": "2026-03-26T01:02:42.196474"
+  },
+  {
+    "titulo": "Una sentencia pionera condena a Meta a pagar 375 millones de dólares por no proteger a los menores en las redes sociales",
+    "resumen": null,
+    "enlace": "https://elpais.com/tecnologia/2026-03-25/una-sentencia-pionera-condena-a-meta-a-pagar-375-millones-de-dolares-por-no-proteger-a-los-menores-en-las-redes-sociales.html",
+    "fecha": "2026-03-25T01:32:25+01:00",
+    "imagen": null,
+    "fuente": "elpais.com",
+    "fecha_extraccion": "2026-03-26T01:02:42.196899"
+  },
+  {
+    "titulo": "OpenAI cierra su generador de vídeo Sora solo seis meses después de su lanzamiento como app",
+    "resumen": "La compañía de Sam Altman toma la decisión tras haber firmado en diciembre un acuerdo único con Disney, que ahora queda sin efecto",
+    "enlace": "https://elpais.com/tecnologia/2026-03-25/openai-cierra-su-generador-de-video-sora-solo-seis-meses-despues-de-su-lanzamiento-como-app.html",
+    "fecha": "2026-03-25T10:31:05+01:00",
+    "imagen": "https://imagenes.elpais.com/resizer/v2/B2QDA7CD5JPB7BIZMWAP4IT3AQ.jpg?auth=8fc99233b2da450f8cdf443dfb159e0f90e3d53bc15871789ae90e290dc9a507&width=414&height=233&smart=true",
+    "fuente": "elpais.com",
+    "fecha_extraccion": "2026-03-26T01:02:42.197153"
+  },
+  {
+    "titulo": "La denuncia en España de una actriz a su exmarido por enviar ‘deepfakes’ sexuales sacude a Alemania",
+    "resumen": "Collien Fernandes acusa al también actor Christian Ulmen de haber enviado a numerosos hombres vídeos e imágenes pornográficas falsificadas de ella. El caso ha generado un debate sobre cómo proteger a las mujeres de la violencia sexual digital",
+    "enlace": "https://elpais.com/sociedad/2026-03-24/la-denuncia-en-espana-de-una-actriz-a-su-exmarido-por-enviar-deepfakes-sexuales-sacude-a-alemania.html",
+    "fecha": "2026-03-24T05:30:01+01:00",
+    "imagen": null,
+    "fuente": "elpais.com",
+    "fecha_extraccion": "2026-03-26T01:02:42.197385"
+  },
+  {
+    "titulo": "Cinco ‘gadgets’ que parecen de ciencia ficción, pero ya se pueden comprar",
+    "resumen": "Tecnologías que antes solo existían en la gran pantalla han terminado por materializarse en productos reales, accesibles y cada vez más cotidianos. Repasamos algunos de los más llamativos",
+    "enlace": "https://elpais.com/tecnologia/tu-tecnologia/2026-03-23/cinco-gadgets-que-parecen-de-ciencia-ficcion-pero-ya-se-pueden-comprar.html",
+    "fecha": "2026-03-23T05:30:01+01:00",
+    "imagen": null,
+    "fuente": "elpais.com",
+    "fecha_extraccion": "2026-03-26T01:02:42.197607"
+  }
+]
