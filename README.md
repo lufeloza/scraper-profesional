@@ -1,72 +1,96 @@
-# Web Scraper Profesional
+# 🕵️ Web Scraper Profesional (Async)
 
-Sistema modular de extracción de datos de páginas web.
+![Scraper Dashboard Mockup](./assets/img/scraper_dashboard_mockup.png)
 
-## 🎯 Para qué sirve
+[![Python 3.9+](https://img.shields.io/badge/python-3.9+-blue.svg)](https://www.python.org/downloads/)
+[![BeautifulSoup](https://img.shields.io/badge/BS4-scraping-green)](https://www.crummy.com/software/BeautifulSoup/)
+[![Httpx](https://img.shields.io/badge/httpx-async-blue)](https://www.python-httpx.org/)
+[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 
-- Extraer datos de cualquier sitio web
-- Monitoreo de precios de competidores
-- Generación de bases de datos de leads
-- Extracción de noticias y contenidos
+Sistema de extracción de datos asíncrono y modular diseñado para la recolección masiva de información web con alta eficiencia y respeto a las políticas de los servidores.
 
-## ✨ Características
+## 🌟 Showcase del Proyecto
 
-| Tipo | Descripción |
-|------|-------------|
-| **Scraper de Noticias** | Extrae artículos de medios digitales |
-| **Scraper E-commerce** | Monitorea precios y disponibilidad |
-| **Scraper Genérico** | Configurable con selectores CSS personalizados |
-| **Exportación** | JSON, CSV y Excel |
-| **Rate Limiting** | Respetuoso con servidores |
+Este scraper va más allá de un simple script de extracción:
+*   **Arquitectura Asíncrona:** Utiliza `httpx` y `asyncio` para realizar múltiples peticiones en paralelo, optimizando el tiempo de ejecución.
+*   **Monitor de E-commerce:** Sistema especializado para seguir variaciones de precios en tiempo real.
+*   **Exportador Multi-formato:** Salida estructurada a JSON, CSV y Excel profesional.
+*   **Ética de Scraping:** Implementa rotación de User-Agents y retardos inteligentes (Rate Limiting).
 
-## 🛠️ Stack
+## 🏗️ Pipeline de Extracción de Datos
 
-- Python 3.9+
-- BeautifulSoup4
-- Requests
-- openpyxl (Excel)
-
-## 🚀 Cómo ejecutarlo
-
-```bash
-cd scraper-profesional
-pip install -r requirements.txt
-python scraper.py
+```mermaid
+graph LR
+    A[URLs Objetivo] --> B[Scraper Asíncrono]
+    B --> C{Tipo de Contenido}
+    C -->|Noticias| D[Extractor BeautifulSoup]
+    C -->|E-commerce| E[Extractor Selectores CSS]
+    D --> F[Limpieza de Datos]
+    E --> F
+    F --> G[Validador de Esquemas]
+    G --> H[Exportador Datos]
+    H --> I[(JSON/CSV/Excel)]
 ```
 
-Los resultados se guardan en `scraping_resultados/`
+## ✨ Características Técnicas
 
-## 📦 Uso en tu proyecto
+| Módulo | Implementación | Ventaja Competitiva |
+|--------|----------------|---------------------|
+| **Concurrencia** | `asyncio.gather()` | Procesamiento de 100+ páginas en segundos. |
+| **Parsing** | BeautifulSoup4 (LXML) | Extracción precisa incluso en HTML complejo. |
+| **Exportación** | Clase `ExportadorDatos` | Entrega de resultados listos para análisis. |
+| **Configuración** | `scraper_config.json` | Fácil de adaptar a nuevos sitios sin cambiar código. |
+
+## 🛠️ Stack Tecnológico
+
+- **LenguajeCore:** Python 3.9+
+- **HTTP Client:** Httpx (Async)
+- **HTML Parser:** BeautifulSoup4
+- **Excel Engine:** openpyxl
+- **Logger:** Logging modular para auditoría de procesos
+
+## 🚀 Instalación y Ejecución
+
+### 1. Preparación
+```bash
+# Entrar al directorio
+cd scraper-profesional
+
+# Instalar dependencias
+pip install -r requirements.txt
+```
+
+### 2. Uso Rápido
+```bash
+# Ejecutar el script principal
+python scraper.py
+```
+*Los resultados se almacenarán automáticamente en la carpeta `scraping_resultados/`.*
+
+## 📋 Ejemplo de Implementación
 
 ```python
 from scraper import ScraperNoticias, ExportadorDatos
+import asyncio
 
-# Extraer noticias
-scraper = ScraperNoticias()
-noticias = scraper.extraer_noticias("https://elpais.com/tecnologia/", max_noticias=10)
+async def main():
+    # 1. Inicializar
+    scraper = ScraperNoticias()
+    
+    # 2. Extraer noticias en paralelo
+    noticias = await scraper.extraer_noticias("https://elpais.com/tecnologia/")
+    
+    # 3. Exportar resultado profesional
+    ExportadorDatos.a_excel(noticias, "monitor_tecnologia")
+    await scraper.cerrar()
 
-# Exportar a Excel
-ExportadorDatos.a_excel(noticias, "mis_noticias")
-```
-
-```python
-from scraper import ScraperEcommerce
-
-# Extraer producto
-scraper = ScraperEcommerce()
-producto = scraper.extraer_producto("https://amazon.com/dp/...")
-print(f"Precio: {producto.precio}")
-```
-
-## 📁 Estructura
-```
-scraper-profesional/
-├── scraper.py           # Código principal
-├── scraping_resultados/ # Resultados
-├── requirements.txt
-└── README.md
+if __name__ == "__main__":
+    asyncio.run(main())
 ```
 
 ---
 
-**リストラブル y fácil de extender.** Puedo adaptarlo a tus necesidades específicas.
+> [!TIP]
+> **Potencial de Negocio:** Este sistema es ideal para herramientas de SEO, monitoreo de marcas, investigación de mercado y automatización de contenidos periodísticos.
+
+**Diseñado para la eficiencia y la escalabilidad.**
